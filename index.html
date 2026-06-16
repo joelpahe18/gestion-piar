@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión PIAR - IE Luis Patrón Rosano</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1a365d;
+            --primary-light: #2b5797;
+            --primary-dark: #0f2340;
+            --accent: #c5a55a;
+            --accent-light: #d4b96e;
+            --bg: #f0f2f5;
+            --card: #ffffff;
+            --text: #1a202c;
+            --text-muted: #718096;
+            --border: #e2e8f0;
+            --success: #38a169;
+            --danger: #e53e3e;
+            --warning: #d69e2e;
+            --radius: 8px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-lg: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* ===== LOADING & LOGIN ===== */
+        #loading-overlay {
+            position: fixed; inset: 0; z-index: 9999;
+            background: var(--primary);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            color: white; transition: opacity 0.5s;
+        }
+        #loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        .spinner {
+            width: 48px; height: 48px;
+            border: 4px solid rgba(255,255,255,0.2);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #login-screen {
+            position: fixed; inset: 0; z-index: 9998;
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 50%, var(--primary-light) 100%);
+            display: flex; align-items: center; justify-content: center;
+            transition: opacity 0.5s;
+        }
+        #login-screen.hidden { opacity: 0; pointer-events: none; }
+
+        .login-card {
+            background: var(--card); border-radius: 12px;
+            padding: 40px; width: 100%; max-width: 420px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: fadeUp 0.6s ease-out;
+        }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .login-logo {
+            text-align: center; margin-bottom: 32px;
+        }
+        .login-logo i { font-size: 48px; color: var(--primary); margin-bottom: 12px; }
+        .login-logo h1 { font-size: 20px; color: var(--primary); font-weight: 700; }
+        .login-logo p { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+        .form-group .input-wrap {
+            position: relative;
+        }
+        .form-group .input-wrap i {
+            position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+            color: var(--text-muted); font-size: 16px;
+        }
+        .form-group input {
+            width: 100%; padding: 10px 12px 10px 40px;
+            border: 1.5px solid var(--border); border-radius: var(--radius);
+            font-size: 14px; transition: border-color 0.2s, box-shadow 0.2s;
+            background: #f8fafc;
+        }
+        .form-group input:focus {
+            outline: none; border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(43,87,151,0.15);
+            background: white;
+        }
+
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 10px 20px; border-radius: var(--radius);
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            border: none; transition: all 0.2s;
+        }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover:not(:disabled) { background: var(--primary-light); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover:not(:disabled) { background: #2f855a; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover:not(:disabled) { background: #c53030; }
+        .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
+        .btn-outline:hover:not(:disabled) { background: var(--bg); }
+        .btn-sm { padding: 6px 14px; font-size: 13px; }
+        .btn-lg { padding: 12px 24px; font-size: 16px; }
+        .btn-full { width: 100%; }
+        .btn-accent { background: var(--accent); color: var(--primary-dark); }
+        .btn-accent:hover:not(:disabled) { background: var(--accent-light); }
+
+        .login-error {
+            background: #fed7d7; color: #c53030;
+            padding: 10px 14px; border-radius: var(--radius);
+            font-size: 13px; margin-bottom: 16px; display: none;
+        }
+
+        /* ===== MAIN APP ===== */
+        #app { display: none; }
+        #app.active { display: block; }
+
+        .app-header {
+            background: var(--primary);
+            color: white; padding: 0 24px;
+            display: flex; align-items: center; justify-content: space-between;
+            height: 64px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .app-header .brand { display: flex; align-items: center; gap: 12px; }
+        .app-header .brand i { font-size: 28px; color: var(--accent); }
+        .app-header .brand h1 { font-size: 18px; font-weight: 700; }
+        .app-header .brand span { font-size: 12px; opacity: 0.7; display: block; }
+
+        .user-info { display: flex; align-items: center; gap: 16px; }
+        .user-info .user-details { text-align: right; }
+        .user-info .user-details .name { font-size: 13px; font-weight: 600; }
+        .role-badge {
+            display: inline-block; padding: 2px 10px; border-radius: 20px;
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .role-badge.admin { background: var(--accent); color: var(--primary-dark); }
+        .role-badge.docente { background: #bee3f8; color: #2b6cb0; }
+        .user-info .logout-btn {
+            background: rgba(255,255,255,0.15); color: white;
+            border: none; padding: 8px 16px; border-radius: var(--radius);
+            cursor: pointer; font-size: 13px; font-weight: 500;
+            transition: background 0.2s;
+        }
+        .user-info .logout-btn:hover { background: rgba(255,255,255,0.25); }
+
+        /* ===== NAVIGATION ===== */
+        .app-nav {
+            background: white; border-bottom: 1px solid var(--border);
+            padding: 0 24px; display: flex; gap: 4px;
+            overflow-x: auto; position: sticky; top: 64px; z-index: 99;
+        }
+        .app-nav button {
+            padding: 14px 20px; border: none; background: none;
+            font-size: 14px; font-weight: 500; color: var(--text-muted);
+            cursor: pointer; border-bottom: 3px solid transparent;
+            transition: all 0.2s; white-space: nowrap;
+        }
+        .app-nav button:hover { color: var(--primary); background: #f7fafc; }
+        .app-nav button.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+
+        /* ===== CONTENT ===== */
+        .app-content { max-width: 1280px; margin: 0 auto; padding: 24px; }
+
+        .section-card {
+            background: var(--card); border-radius: var(--radius);
+            box-shadow: var(--shadow); padding: 28px;
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .section-card.hidden { display: none; }
+
+        .section-title {
+            font-size: 20px; font-weight: 700; color: var(--primary);
+            margin-bottom: 24px; padding-bottom: 12px;
+            border-bottom: 2px solid var(--bg);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .section-title i { color: var(--accent); }
+
+        /* ===== FORMS ===== */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+        .form-grid .colspan-2 { grid-column: span 2; }
+        .form-grid label { display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+        .form-grid input, .form-grid select, .form-grid textarea {
+            width: 100%; padding: 8px 12px;
+            border: 1.5px solid var(--border); border-radius: var(--radius);
+            font-size: 14px; transition: all 0.2s; background: #f8fafc;
+        }
+        .form-grid input:focus, .form-grid select:focus, .form-grid textarea:focus {
+            outline: none; border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(43,87,151,0.12);
+            background: white;
+        }
+        .form-grid input:read-only, .form-grid input:disabled { background: #edf2f7; cursor: not-allowed; }
+        .form-grid input.error, .form-grid select.error, .form-grid textarea.error { border-color: var(--danger) !important; }
+        .form-grid input.success, .form-grid select.success, .form-grid textarea.success { border-color: var(--success) !important; }
+        .form-grid .field-error, .form-group .field-error { font-size: 12px; color: var(--danger); margin-top: 2px; display: none; }
+        .form-grid .field-error.show, .form-group .field-error.show { display: block; }
+        .form-highlight { background: #f0f4ff; padding: 16px; border-radius: var(--radius); }
+        .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+
+        /* ===== TABLES ===== */
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        table thead { background: var(--bg); }
+        table th {
+            padding: 10px 12px; text-align: left; font-weight: 600;
+            color: var(--text-muted); font-size: 12px; text-transform: uppercase;
+            letter-spacing: 0.5px; border-bottom: 2px solid var(--border);
+        }
+        table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+        table tbody tr:hover { background: #f7fafc; }
+
+        /* ===== BADGES ===== */
+        .badge {
+            display: inline-block; padding: 2px 10px; border-radius: 20px;
+            font-size: 12px; font-weight: 600;
+        }
+        .badge-blue { background: #bee3f8; color: #2b6cb0; }
+        .badge-green { background: #c6f6d5; color: #276749; }
+        .badge-red { background: #fed7d7; color: #c53030; }
+
+        /* ===== FILTERS BAR ===== */
+        .filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .filters input, .filters select {
+            width: 100%; padding: 8px 12px;
+            border: 1.5px solid var(--border); border-radius: var(--radius);
+            font-size: 13px; background: #f8fafc;
+        }
+        .filters input:focus, .filters select:focus {
+            outline: none; border-color: var(--primary-light);
+        }
+
+        /* ===== USERS TABLE (Admin) ===== */
+        .users-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .user-form-inline {
+            display: grid; grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 12px; padding: 16px; background: var(--bg);
+            border-radius: var(--radius); margin-bottom: 16px; align-items: end;
+        }
+        .user-form-inline .form-group { margin-bottom: 0; }
+        .user-form-inline input, .user-form-inline select {
+            width: 100%; padding: 8px 12px;
+            border: 1.5px solid var(--border); border-radius: var(--radius);
+            font-size: 13px; background: white;
+        }
+        .user-form-inline input:focus, .user-form-inline select:focus {
+            outline: none; border-color: var(--primary-light);
+        }
+
+        /* ===== FILE MANAGEMENT ===== */
+        .file-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .file-card {
+            border: 1.5px solid var(--border); border-radius: var(--radius);
+            padding: 24px; display: flex; flex-direction: column; justify-content: space-between;
+            transition: box-shadow 0.2s;
+        }
+        .file-card:hover { box-shadow: var(--shadow); }
+        .file-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+        .file-card p { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+        .file-card .btn { width: 100%; }
+
+        .storage-status {
+            margin-top: 20px; padding: 16px; background: var(--bg);
+            border-radius: var(--radius); font-size: 13px;
+        }
+
+        /* ===== PRINT OPTIONS ===== */
+        .print-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; padding: 16px; background: var(--bg); border-radius: var(--radius); }
+        .print-options label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+        .print-options input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); }
+
+        /* ===== PRINT STYLES ===== */
+        @media print {
+            body { background: white !important; }
+            .app-header, .app-nav, .app-content > .section-card:not(.hidden) { display: none !important; }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            .print-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+            .print-table th, .print-table td { border: 1px solid #000; padding: 4px 6px; text-align: left; }
+            .print-table th { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            @page { size: landscape; margin: 10mm; }
+        }
+        .print-only { display: none; }
+        .print-area { padding: 20px; }
+        .print-area h1 { font-size: 20px; text-align: center; margin-bottom: 4px; }
+        .print-area p { text-align: center; font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+
+        .hidden { display: none !important; }
+        [hidden] { display: none !important; }
+        .text-center { text-align: center; }
+        .font-semibold { font-weight: 600; }
+
+        /* ===== MODAL ===== */
+        .modal-overlay {
+            position: fixed; inset: 0; z-index: 9997;
+            background: rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center;
+            animation: fadeIn 0.2s ease-out;
+        }
+        .modal-card {
+            background: var(--card); border-radius: 12px;
+            width: 100%; max-width: 440px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: fadeUp 0.3s ease-out;
+        }
+        .modal-header {
+            padding: 20px 24px 0;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .modal-header h3 { font-size: 18px; font-weight: 700; color: var(--primary); }
+        .modal-close {
+            background: none; border: none; font-size: 28px;
+            cursor: pointer; color: var(--text-muted); line-height: 1;
+        }
+        .modal-close:hover { color: var(--text); }
+        .modal-body { padding: 16px 24px; }
+        .modal-footer {
+            padding: 0 24px 20px;
+            display: flex; justify-content: flex-end; gap: 8px;
+        }
+
+        /* ===== RECOVERY FORM ===== */
+        .recovery-info {
+            background: #f0f4ff; padding: 12px 16px;
+            border-radius: var(--radius); margin-bottom: 16px;
+            font-size: 14px; border-left: 4px solid var(--primary-light);
+        }
+        .recovery-info strong { color: var(--primary); }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            .app-header { padding: 0 16px; }
+            .app-content { padding: 16px; }
+            .section-card { padding: 16px; }
+            .form-grid { grid-template-columns: 1fr; }
+            .form-grid .colspan-2 { grid-column: span 1; }
+            .filters { grid-template-columns: 1fr; }
+            .file-grid { grid-template-columns: 1fr; }
+            .user-form-inline { grid-template-columns: 1fr; }
+            .print-options { grid-template-columns: 1fr 1fr; }
+            .app-header .brand span { display: none; }
+            .user-info .user-details .name { font-size: 12px; }
+            .login-card { padding: 24px; margin: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- LOADING -->
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <p style="font-size:15px;font-weight:500;">Cargando aplicación...</p>
+        <p style="font-size:13px;opacity:0.7;margin-top:4px;">Sistema de Gestión PIAR</p>
+    </div>
+
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen">
+        <div class="login-card">
+            <div class="login-logo">
+                <i class="fas fa-universal-access"></i>
+                <h1>Gestión PIAR</h1>
+                <p>IE Luis Patrón Rosano</p>
+            </div>
+            <div class="login-error" id="login-error"></div>
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Usuario</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="login-username" placeholder="Ingrese su usuario" required autocomplete="username" minlength="3" maxlength="50" pattern="[a-zA-Z0-9_]+" title="Solo letras, números y guión bajo">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="login-password" placeholder="Ingrese su contraseña" required autocomplete="current-password" minlength="4" maxlength="100">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full btn-lg" id="login-btn">
+                    <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+                </button>
+            </form>
+            <div id="forgot-link-container" style="text-align:center;margin-top:14px;">
+                <a href="#" onclick="showRecoveryForm();return false;" style="font-size:13px;color:var(--primary-light);text-decoration:none;">
+                    <i class="fas fa-question-circle"></i> ¿Olvidaste tu contraseña?
+                </a>
+            </div>
+            <div id="recovery-form" class="hidden" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+                <div id="recovery-step-1">
+                    <p style="font-size:14px;color:var(--text-muted);margin-bottom:16px;">Ingresa tu nombre de usuario para recuperar tu contraseña.</p>
+                    <div class="form-group">
+                        <label>Usuario</label>
+                        <div class="input-wrap">
+                            <i class="fas fa-user"></i>
+                            <input type="text" id="recovery-username" placeholder="Nombre de usuario" minlength="3" maxlength="50" pattern="[a-zA-Z0-9_]+" title="Solo letras, números y guión bajo">
+                        </div>
+                    </div>
+                    <button onclick="handleRecoveryStep1()" class="btn btn-primary btn-full">
+                        <i class="fas fa-search"></i> Verificar Usuario
+                    </button>
+                    <div style="text-align:center;margin-top:10px;">
+                        <a href="#" onclick="cancelRecovery();return false;" style="font-size:13px;color:var(--text-muted);text-decoration:none;">
+                            <i class="fas fa-arrow-left"></i> Volver al inicio de sesión
+                        </a>
+                    </div>
+                </div>
+                <div id="recovery-step-2" class="hidden">
+                    <div class="recovery-info" id="recovery-info"></div>
+                    <div class="form-group">
+                        <label>Nueva Contraseña</label>
+                        <div class="input-wrap">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="recovery-new-password" placeholder="Nueva contraseña" minlength="4" maxlength="100">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Confirmar Contraseña</label>
+                        <div class="input-wrap">
+                            <i class="fas fa-check-circle"></i>
+                            <input type="password" id="recovery-confirm-password" placeholder="Confirmar contraseña" minlength="4" maxlength="100">
+                        </div>
+                    </div>
+                    <div class="login-error" id="recovery-error"></div>
+                    <button onclick="handleRecoveryStep2()" class="btn btn-success btn-full">
+                        <i class="fas fa-key"></i> Cambiar Contraseña
+                    </button>
+                    <div style="text-align:center;margin-top:10px;">
+                        <a href="#" onclick="cancelRecovery();return false;" style="font-size:13px;color:var(--text-muted);text-decoration:none;">
+                            <i class="fas fa-arrow-left"></i> Volver al inicio de sesión
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="app">
+        <header class="app-header">
+            <div class="brand">
+                <i class="fas fa-universal-access"></i>
+                <div>
+                    <h1>Gestión PIAR</h1>
+                    <span>IE Luis Patrón Rosano</span>
+                </div>
+            </div>
+            <div class="user-info">
+                <div class="user-details">
+                    <div class="name" id="user-name"></div>
+                    <span class="role-badge" id="user-role-badge"></span>
+                </div>
+                <button class="logout-btn" onclick="showSelfChangePassword()" title="Cambiar contraseña"><i class="fas fa-key"></i></button>
+                <button class="logout-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Salir</button>
+            </div>
+        </header>
+
+        <nav class="app-nav" id="app-nav">
+            <button onclick="showSection('registro', this)" class="active" data-section="registro"><i class="fas fa-edit"></i> Registro / Edición</button>
+            <button onclick="showSection('directorio', this)" data-section="directorio"><i class="fas fa-list"></i> Directorio</button>
+            <button onclick="showSection('impresion', this)" data-section="impresion"><i class="fas fa-print"></i> Impresión</button>
+            <button onclick="showSection('archivos', this)" data-section="archivos"><i class="fas fa-file-alt"></i> Archivos</button>
+            <button onclick="showSection('usuarios', this)" data-section="usuarios" class="admin-only"><i class="fas fa-users-cog"></i> Usuarios</button>
+        </nav>
+
+        <div class="app-content">
+            <!-- REGISTRO -->
+            <section id="registro" class="section-card">
+                <div class="section-title"><i class="fas fa-user-plus"></i> <span id="form-title">Registrar Nuevo Estudiante</span></div>
+                <form id="piarForm" onsubmit="saveStudent(event)">
+                    <input type="hidden" id="studentId">
+                    <div class="form-grid">
+                        <div class="colspan-2">
+                            <label>Nombre Completo</label>
+                            <input type="text" id="nombre" required minlength="3" maxlength="150" pattern="[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+" title="Solo letras y espacios">
+                        </div>
+                        <div>
+                            <label>No. Documento</label>
+                            <input type="text" id="documento" required minlength="5" maxlength="20" pattern="[a-zA-Z0-9-]+" title="Solo letras, números y guiones">
+                        </div>
+                        <div>
+                            <label>Fecha de Nacimiento</label>
+                            <input type="date" id="fecha_nac" onchange="calculateAge()" required min="1900-01-01" max="" oninput="validateDateInput(this)">
+                        </div>
+                        <div>
+                            <label>Edad</label>
+                            <input type="number" id="edad" readonly min="0" max="99" onwheel="return false" onkeydown="return false" onpaste="return false">
+                        </div>
+                        <div>
+                            <label>Teléfono de Contacto</label>
+                            <input type="tel" id="telefono" maxlength="15" pattern="[0-9+\-() ]+" title="Solo números, +, -, paréntesis y espacios">
+                        </div>
+                        <div>
+                            <label>Nombre de la Madre</label>
+                            <input type="text" id="madre" maxlength="150" pattern="[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]*" title="Solo letras y espacios">
+                        </div>
+                        <div>
+                            <label>Nombre del Padre</label>
+                            <input type="text" id="padre" maxlength="150" pattern="[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]*" title="Solo letras y espacios">
+                        </div>
+                        <div class="colspan-2">
+                            <label>Condición / Diagnóstico</label>
+                            <input type="text" id="condicion" placeholder="Ej. TDAH, Autismo..." required minlength="3" maxlength="200">
+                        </div>
+                    </div>
+                    <div class="form-highlight form-grid" style="margin-top:16px;">
+                        <div>
+                            <label>Sede</label>
+                            <select id="sede">
+                                <option value="Sede Principal">Principal</option>
+                                <option value="Sede Fátima">Fátima</option>
+                                <option value="Sede Galán">Galán</option>
+                                <option value="Sede Magohe">Magohe</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Grado</label>
+                            <select id="grado">
+                                <option value="Pre Jardín">Pre Jardín</option>
+                                <option value="Jardín">Jardín</option>
+                                <option value="Transición">Transición</option>
+                                <option value="Primero">Primero</option>
+                                <option value="Segundo">Segundo</option>
+                                <option value="Tercero">Tercero</option>
+                                <option value="Cuarto">Cuarto</option>
+                                <option value="Quinto">Quinto</option>
+                                <option value="Sexto">Sexto</option>
+                                <option value="Séptimo">Séptimo</option>
+                                <option value="Octavo">Octavo</option>
+                                <option value="Noveno">Noveno</option>
+                                <option value="Décimo">Décimo</option>
+                                <option value="Once">Once</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Grupo</label>
+                            <input type="text" id="grupo" placeholder="Ej. A, B, 10-1" maxlength="10">
+                        </div>
+                        <div>
+                            <label>Maestro Titular</label>
+                            <input type="text" id="maestro" maxlength="150" pattern="[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]*" title="Solo letras y espacios">
+                        </div>
+                    </div>
+                    <div class="form-grid" style="margin-top:16px;">
+                        <div>
+                            <label>Ajustes Razonables (Metodología/Evaluación)</label>
+                            <textarea id="ajustes" rows="4" style="resize:vertical;" maxlength="2000"></textarea>
+                        </div>
+                        <div>
+                            <label>Avances Trimestrales</label>
+                            <textarea id="avances" rows="4" style="resize:vertical;" placeholder="Trimestre 1: ...&#10;Trimestre 2: ..." maxlength="2000"></textarea>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" onclick="clearForm()" class="btn btn-outline">Limpiar</button>
+                        <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Guardar Datos</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- DIRECTORIO -->
+            <section id="directorio" class="section-card hidden">
+                <div class="section-title"><i class="fas fa-list"></i> Directorio y Filtros</div>
+                <div class="filters">
+                    <input type="text" id="filter-nombre" placeholder="Buscar por nombre..." oninput="renderTable()">
+                    <select id="filter-sede" onchange="renderTable()">
+                        <option value="">Todas las Sedes</option>
+                        <option value="Sede Principal">Principal</option>
+                        <option value="Sede Fátima">Fátima</option>
+                        <option value="Sede Galán">Galán</option>
+                        <option value="Sede Magohe">Magohe</option>
+                    </select>
+                    <select id="filter-grado" onchange="renderTable()">
+                        <option value="">Todos los Grados</option>
+                        <option value="Pre Jardín">Pre Jardín</option>
+                        <option value="Jardín">Jardín</option>
+                        <option value="Transición">Transición</option>
+                        <option value="Primero">Primero</option>
+                        <option value="Segundo">Segundo</option>
+                        <option value="Tercero">Tercero</option>
+                        <option value="Cuarto">Cuarto</option>
+                        <option value="Quinto">Quinto</option>
+                        <option value="Sexto">Sexto</option>
+                        <option value="Séptimo">Séptimo</option>
+                        <option value="Octavo">Octavo</option>
+                        <option value="Noveno">Noveno</option>
+                        <option value="Décimo">Décimo</option>
+                        <option value="Once">Once</option>
+                    </select>
+                    <input type="text" id="filter-maestro" placeholder="Filtrar maestro..." oninput="renderTable()">
+                    <input type="text" id="filter-condicion" placeholder="Filtrar condición..." oninput="renderTable()">
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nombre / Doc.</th>
+                                <th>Edad</th>
+                                <th>Sede / Grado</th>
+                                <th>Contacto</th>
+                                <th>Condición</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="student-table-body"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- IMPRESION -->
+            <section id="impresion" class="section-card hidden">
+                <div class="section-title"><i class="fas fa-print"></i> Configuración del Reporte</div>
+                <p style="font-size:14px;color:var(--text-muted);margin-bottom:16px;">Selecciona las columnas que deseas incluir en el reporte impreso:</p>
+                <div class="print-options">
+                    <label><input type="checkbox" value="documento" checked class="print-opt"> Documento</label>
+                    <label><input type="checkbox" value="edad" checked class="print-opt"> Edad</label>
+                    <label><input type="checkbox" value="padres" checked class="print-opt"> Padres</label>
+                    <label><input type="checkbox" value="telefono" checked class="print-opt"> Teléfono</label>
+                    <label><input type="checkbox" value="sede" checked class="print-opt"> Sede/Grado</label>
+                    <label><input type="checkbox" value="maestro" checked class="print-opt"> Maestro</label>
+                    <label><input type="checkbox" value="condicion" checked class="print-opt"> Condición</label>
+                    <label><input type="checkbox" value="ajustes" checked class="print-opt"> Ajustes</label>
+                    <label><input type="checkbox" value="avances" checked class="print-opt"> Avances</label>
+                </div>
+                <div style="margin-top:20px;">
+                    <button onclick="window.print()" class="btn btn-primary btn-lg"><i class="fas fa-print"></i> Generar Impresión</button>
+                </div>
+            </section>
+
+            <!-- ARCHIVOS -->
+            <section id="archivos" class="section-card hidden">
+                <div class="section-title"><i class="fas fa-file-alt"></i> Gestión de Datos</div>
+                <p style="font-size:14px;color:var(--text-muted);margin-bottom:20px;">
+                    Exporta tus datos como archivo de texto o importa registros desde una copia de seguridad.
+                </p>
+                <div class="file-grid">
+                    <div class="file-card" style="background:#f0f4ff;border-color:#c3d9ff;">
+                        <div>
+                            <h3 style="color:var(--primary);"><i class="fas fa-download"></i> Exportar a Archivo</h3>
+                            <p>Descarga una copia de seguridad con todos los registros actuales en formato JSON.</p>
+                        </div>
+                        <button onclick="exportToTextFile()" class="btn btn-primary"><i class="fas fa-file-download"></i> Guardar como Archivo</button>
+                    </div>
+                    <div class="file-card" style="background:#f0fff4;border-color:#c6f6d5;">
+                        <div>
+                            <h3 style="color:var(--success);"><i class="fas fa-upload"></i> Importar desde Archivo</h3>
+                            <p>Carga un archivo de texto guardado anteriormente para restaurar tus registros.</p>
+                        </div>
+                        <div>
+                            <input type="file" id="importFile" accept=".json,.txt" class="hidden" style="display:none;" onchange="importFromTextFile(event)">
+                            <button onclick="document.getElementById('importFile').click()" class="btn btn-success"><i class="fas fa-file-upload"></i> Cargar Archivo</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="storage-status">
+                    <span class="font-semibold">Registros en base de datos:</span>
+                    <span id="local-count" class="badge badge-blue" style="margin-left:8px;">0</span>
+                    <span style="margin-left:24px;font-size:12px;color:var(--text-muted);">Última acción:</span>
+                    <span id="last-file-action" style="font-size:12px;color:var(--text-muted);">Ninguna</span>
+                    <button onclick="resetDatabase()" class="btn btn-danger btn-sm" style="float:right;"><i class="fas fa-trash-alt"></i> Reiniciar BD</button>
+                </div>
+            </section>
+
+            <!-- USUARIOS (Admin only) -->
+            <section id="usuarios" class="section-card hidden">
+                <div class="section-title"><i class="fas fa-users-cog"></i> Administración de Usuarios</div>
+                <div class="users-header">
+                    <p style="font-size:14px;color:var(--text-muted);">Gestiona los usuarios del sistema. Solo visible para administradores.</p>
+                </div>
+
+                <div class="user-form-inline" id="user-form">
+                    <div class="form-group">
+                        <label>Usuario</label>
+                        <input type="text" id="new-username" placeholder="Nombre de usuario" minlength="3" maxlength="50" pattern="[a-zA-Z0-9_]+" title="Solo letras, números y guión bajo">
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre Completo</label>
+                        <input type="text" id="new-nombre" placeholder="Nombre del docente" maxlength="150" pattern="[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+" title="Solo letras y espacios">
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <input type="text" id="new-password" placeholder="Contraseña temporal" minlength="4" maxlength="100">
+                    </div>
+                    <div class="form-group" style="display:flex;gap:8px;align-items:end;">
+                        <button onclick="saveUser()" class="btn btn-success"><i class="fas fa-plus"></i> Agregar</button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Nombre Completo</th>
+                                <th>Rol</th>
+                                <th>Creado</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- CHANGE PASSWORD MODAL -->
+    <div id="change-password-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fas fa-key"></i> Cambiar Contraseña</h3>
+                <button onclick="closeChangePasswordModal()" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="change-password-user-id">
+                <p id="change-password-info" style="font-size:14px;color:var(--text-muted);margin-bottom:16px;"></p>
+                <div id="change-password-current-wrapper">
+                    <div class="form-group">
+                        <label>Contraseña Actual</label>
+                        <div class="input-wrap">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="change-password-current" placeholder="Ingrese su contraseña actual" maxlength="100">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Nueva Contraseña</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-key"></i>
+                        <input type="password" id="change-password-new" placeholder="Ingrese la nueva contraseña" minlength="4" maxlength="100">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Confirmar Contraseña</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-check-circle"></i>
+                        <input type="password" id="change-password-confirm" placeholder="Confirme la nueva contraseña" minlength="4" maxlength="100">
+                    </div>
+                </div>
+                <div class="login-error" id="change-password-error"></div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeChangePasswordModal()" class="btn btn-outline">Cancelar</button>
+                <button onclick="handleChangePassword()" class="btn btn-primary"><i class="fas fa-save"></i> Cambiar Contraseña</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRINT AREA -->
+    <div class="print-only print-area" id="print-area">
+        <h1>Reporte de Estudiantes PIAR - IE Luis Patrón Rosano</h1>
+        <p id="print-date"></p>
+        <table class="print-table" id="print-table">
+            <thead>
+                <tr id="print-table-head"></tr>
+            </thead>
+            <tbody id="print-table-body"></tbody>
+        </table>
+    </div>
+
+    <script>
+        // ===================== CONFIG =====================
+        const API_BASE = window.location.origin + '/api';
+        const SESSION_KEY = 'piar_session_2026';
+
+        // ===================== STATE =====================
+        let currentUser = null;
+        let studentsCache = [];
+        let authToken = null;
+
+        // ===================== API HELPERS =====================
+        async function api(method, path, body) {
+            const opts = {
+                method,
+                headers: { 'Content-Type': 'application/json' }
+            };
+            if (authToken) {
+                opts.headers['Authorization'] = 'Bearer ' + authToken;
+            }
+            if (body !== undefined) {
+                opts.body = JSON.stringify(body);
+            }
+            const res = await fetch(API_BASE + path, opts);
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Error del servidor');
+            }
+            return data;
+        }
+
+        function apiGet(path) { return api('GET', path); }
+        function apiPost(path, body) { return api('POST', path, body); }
+        function apiPut(path, body) { return api('PUT', path, body); }
+        function apiDelete(path) { return api('DELETE', path); }
+
+        // ===================== AUTH =====================
+        async function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+            const errorEl = document.getElementById('login-error');
+            const btn = document.getElementById('login-btn');
+
+            if (!username || !password) {
+                errorEl.textContent = 'Por favor ingresa usuario y contraseña.';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ingresando...';
+
+            try {
+                const data = await apiPost('/auth/login', { username, password });
+                authToken = data.token;
+                currentUser = data.user;
+                sessionStorage.setItem(SESSION_KEY, JSON.stringify({ token: authToken, user: currentUser }));
+                errorEl.style.display = 'none';
+                showApp();
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Iniciar Sesión';
+            } catch (err) {
+                errorEl.textContent = err.message;
+                errorEl.style.display = 'block';
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Iniciar Sesión';
+            }
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            authToken = null;
+            sessionStorage.removeItem(SESSION_KEY);
+            document.getElementById('app').classList.remove('active');
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('login-form').reset();
+            const btn = document.getElementById('login-btn');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Iniciar Sesión';
+        }
+
+        async function checkSession() {
+            const saved = sessionStorage.getItem(SESSION_KEY);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    authToken = parsed.token;
+                    currentUser = parsed.user;
+                    // Verify token is still valid
+                    await apiGet('/auth/me');
+                    showApp();
+                    return true;
+                } catch {
+                    sessionStorage.removeItem(SESSION_KEY);
+                    authToken = null;
+                    currentUser = null;
+                }
+            }
+            return false;
+        }
+
+        async function showApp() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app').classList.add('active');
+
+            document.getElementById('user-name').textContent = currentUser.nombre_completo;
+            const badge = document.getElementById('user-role-badge');
+            badge.textContent = currentUser.rol === 'admin' ? 'Administrador' : 'Docente';
+            badge.className = 'role-badge ' + currentUser.rol;
+
+            document.querySelectorAll('.admin-only').forEach(el => {
+                el.style.display = currentUser.rol === 'admin' ? '' : 'none';
+            });
+
+            if (currentUser.rol === 'docente') {
+                document.getElementById('maestro').value = currentUser.nombre_completo;
+                document.getElementById('maestro').readOnly = true;
+            } else {
+                document.getElementById('maestro').readOnly = false;
+            }
+
+            await loadStudents();
+            await loadUsers();
+        }
+
+        // ===================== STUDENTS =====================
+        async function loadStudents() {
+            try {
+                const data = await apiGet('/students');
+                studentsCache = data.students;
+            } catch {
+                studentsCache = [];
+            }
+            renderTable();
+            updateFileStatus();
+        }
+
+        async function saveStudent(e) {
+            e.preventDefault();
+            const id = document.getElementById('studentId').value;
+            const student = {
+                nombre: document.getElementById('nombre').value.trim(),
+                documento: document.getElementById('documento').value.trim(),
+                fecha_nac: document.getElementById('fecha_nac').value,
+                edad: parseInt(document.getElementById('edad').value) || 0,
+                telefono: document.getElementById('telefono').value.trim(),
+                madre: document.getElementById('madre').value.trim(),
+                padre: document.getElementById('padre').value.trim(),
+                condicion: document.getElementById('condicion').value.trim(),
+                sede: document.getElementById('sede').value,
+                grado: document.getElementById('grado').value,
+                grupo: document.getElementById('grupo').value.trim(),
+                maestro: document.getElementById('maestro').value.trim(),
+                ajustes: document.getElementById('ajustes').value.trim(),
+                avances: document.getElementById('avances').value.trim()
+            };
+
+            let errors = [];
+
+            if (!student.nombre) {
+                errors.push('Nombre Completo');
+                document.getElementById('nombre').classList.add('error');
+            } else if (student.nombre.length < 3) {
+                errors.push('Nombre Completo (mín. 3 caracteres)');
+                document.getElementById('nombre').classList.add('error');
+            } else {
+                document.getElementById('nombre').classList.remove('error');
+            }
+
+            if (!student.documento) {
+                errors.push('No. Documento');
+                document.getElementById('documento').classList.add('error');
+            } else if (student.documento.length < 5) {
+                errors.push('Documento (mín. 5 caracteres)');
+                document.getElementById('documento').classList.add('error');
+            } else {
+                document.getElementById('documento').classList.remove('error');
+            }
+
+            if (!student.fecha_nac) {
+                errors.push('Fecha de Nacimiento');
+                document.getElementById('fecha_nac').classList.add('error');
+            } else {
+                document.getElementById('fecha_nac').classList.remove('error');
+                const birthDate = new Date(student.fecha_nac);
+                const today = new Date();
+                const age = today.getFullYear() - birthDate.getFullYear();
+                if (age < 3 || age > 20) {
+                    errors.push('Edad fuera del rango esperado (3-20 años)');
+                    document.getElementById('fecha_nac').classList.add('error');
+                }
+            }
+
+            if (!student.condicion) {
+                errors.push('Condición / Diagnóstico');
+                document.getElementById('condicion').classList.add('error');
+            } else if (student.condicion.length < 3) {
+                errors.push('Condición (mín. 3 caracteres)');
+                document.getElementById('condicion').classList.add('error');
+            } else {
+                document.getElementById('condicion').classList.remove('error');
+            }
+
+            if (errors.length > 0) {
+                alert('Campos obligatorios incompletos o inválidos:\n- ' + errors.join('\n- '));
+                return;
+            }
+
+            try {
+                if (id) {
+                    await apiPut('/students/' + id, student);
+                } else {
+                    await apiPost('/students', student);
+                }
+            } catch (err) {
+                if (err.message.includes('documento')) {
+                    document.getElementById('documento').classList.add('error');
+                }
+                alert('Error: ' + err.message);
+                return;
+            }
+
+            clearForm();
+            await loadStudents();
+            showSection('directorio', document.querySelector('.app-nav button[data-section="directorio"]'));
+        }
+
+        async function editStudent(id) {
+            try {
+                const data = await apiGet('/students/' + id);
+                const student = data.student;
+
+                document.getElementById('studentId').value = student.id;
+                document.getElementById('nombre').value = student.nombre || '';
+                document.getElementById('documento').value = student.documento || '';
+                document.getElementById('fecha_nac').value = student.fecha_nac || '';
+                document.getElementById('edad').value = student.edad || 0;
+                document.getElementById('telefono').value = student.telefono || '';
+                document.getElementById('madre').value = student.madre || '';
+                document.getElementById('padre').value = student.padre || '';
+                document.getElementById('condicion').value = student.condicion || '';
+                document.getElementById('sede').value = student.sede || 'Sede Principal';
+                document.getElementById('grado').value = student.grado || '';
+                document.getElementById('grupo').value = student.grupo || '';
+                document.getElementById('maestro').value = student.maestro || '';
+                document.getElementById('ajustes').value = student.ajustes || '';
+                document.getElementById('avances').value = student.avances || '';
+
+                document.getElementById('form-title').textContent = 'Editar Datos del Estudiante';
+                showSection('registro', document.querySelector('.app-nav button[data-section="registro"]'));
+            } catch (err) {
+                alert('Error al cargar estudiante: ' + err.message);
+            }
+        }
+
+        async function deleteStudent(id) {
+            if (!confirm('¿Seguro que deseas eliminar este registro estudiantil?')) return;
+            try {
+                await apiDelete('/students/' + id);
+                await loadStudents();
+            } catch (err) {
+                alert('Error al eliminar: ' + err.message);
+            }
+        }
+
+        function clearForm() {
+            document.getElementById('piarForm').reset();
+            document.getElementById('studentId').value = '';
+            document.getElementById('form-title').textContent = 'Registrar Nuevo Estudiante';
+            if (currentUser && currentUser.rol === 'docente') {
+                document.getElementById('maestro').value = currentUser.nombre_completo;
+            }
+        }
+
+        function calculateAge() {
+            const dob = document.getElementById('fecha_nac').value;
+            if (dob) {
+                const diff = Date.now() - new Date(dob).getTime();
+                const ageDate = new Date(diff);
+                let age = Math.abs(ageDate.getUTCFullYear() - 1970);
+                if (age < 0) age = 0;
+                if (age > 99) age = 99;
+                document.getElementById('edad').value = age;
+            }
+        }
+
+        function updateFileStatus() {
+            const el = document.getElementById('local-count');
+            if (el) el.textContent = studentsCache.length;
+        }
+
+        // ===================== USERS (Admin) =====================
+        async function loadUsers() {
+            const tbody = document.getElementById('users-table-body');
+            if (!tbody) return;
+            try {
+                const data = await apiGet('/users');
+                tbody.innerHTML = '';
+                data.users.forEach(u => {
+                    const isSelf = currentUser && u.id === currentUser.id;
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><strong>${u.username}</strong></td>
+                            <td>${u.nombre_completo}</td>
+                            <td><span class="role-badge ${u.rol}">${u.rol === 'admin' ? 'Administrador' : 'Docente'}</span></td>
+                            <td style="font-size:13px;color:var(--text-muted);">${u.created_at || '-'}</td>
+                            <td class="text-center" style="white-space:nowrap;">
+                                <button onclick="showChangePasswordForUser('${u.id}','${u.username}')" class="btn btn-sm btn-outline" title="Cambiar contraseña"><i class="fas fa-key"></i></button>
+                                ${isSelf ? '' :
+                                `<button onclick="deleteUser('${u.id}')" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button>`}
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Error al cargar usuarios.</td></tr>';
+            }
+        }
+
+        async function saveUser() {
+            const username = document.getElementById('new-username').value.trim();
+            const nombre = document.getElementById('new-nombre').value.trim();
+            const password = document.getElementById('new-password').value;
+
+            if (!username || !nombre || !password) {
+                alert('Completa todos los campos para crear un nuevo usuario.');
+                return;
+            }
+
+            try {
+                await apiPost('/users', { username, nombre, password });
+                document.getElementById('new-username').value = '';
+                document.getElementById('new-nombre').value = '';
+                document.getElementById('new-password').value = '';
+                await loadUsers();
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        }
+
+        async function deleteUser(id) {
+            if (!confirm('¿Seguro que deseas eliminar este usuario? Esta acción no se puede deshacer.')) return;
+            if (currentUser && id === currentUser.id) {
+                alert('No puedes eliminar tu propio usuario.');
+                return;
+            }
+            try {
+                await apiDelete('/users/' + id);
+                await loadUsers();
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        }
+
+        async function resetDatabase() {
+            if (!confirm('¿ESTÁS SEGURO? Esto eliminará TODOS los estudiantes y usuarios del sistema. Los datos no se pueden recuperar.')) return;
+            if (!confirm('Confirmación final: ¿Reiniciar completamente la base de datos?')) return;
+            try {
+                await apiPost('/data/reset');
+                handleLogout();
+                alert('Base de datos reiniciada. Usuario por defecto: admin / admin123');
+            } catch (err) {
+                alert('Error al reiniciar: ' + err.message);
+            }
+        }
+
+        // ===================== NAVIGATION =====================
+        function showSection(sectionId, btnElement) {
+            document.querySelectorAll('.section-card').forEach(el => el.classList.add('hidden'));
+            const target = document.getElementById(sectionId);
+            if (target) target.classList.remove('hidden');
+
+            document.querySelectorAll('.app-nav button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            if (btnElement) {
+                btnElement.classList.add('active');
+            } else {
+                const match = document.querySelector(`.app-nav button[data-section="${sectionId}"]`);
+                if (match) match.classList.add('active');
+            }
+
+            if (sectionId === 'directorio' || sectionId === 'impresion') {
+                renderTable();
+            }
+            if (sectionId === 'archivos') {
+                updateFileStatus();
+            }
+            if (sectionId === 'usuarios') {
+                loadUsers();
+            }
+        }
+
+        // ===================== TABLE RENDERING =====================
+        function renderTable() {
+            const fNombre = (document.getElementById('filter-nombre')?.value || '').toLowerCase();
+            const fSede = document.getElementById('filter-sede')?.value || '';
+            const fGrado = document.getElementById('filter-grado')?.value || '';
+            const fMaestro = (document.getElementById('filter-maestro')?.value || '').toLowerCase();
+            const fCondicion = (document.getElementById('filter-condicion')?.value || '').toLowerCase();
+
+            const filtered = studentsCache.filter(s => {
+                return (!fNombre || (s.nombre || '').toLowerCase().includes(fNombre)) &&
+                       (!fSede || s.sede === fSede) &&
+                       (!fGrado || s.grado === fGrado) &&
+                       (!fMaestro || (s.maestro || '').toLowerCase().includes(fMaestro)) &&
+                       (!fCondicion || (s.condicion || '').toLowerCase().includes(fCondicion));
+            });
+
+            // Screen table
+            const tbody = document.getElementById('student-table-body');
+            if (tbody) {
+                tbody.innerHTML = '';
+                filtered.forEach(s => {
+                    const docText = s.documento ? s.documento : '';
+                    const telText = s.telefono ? `<i class="fas fa-phone" style="font-size:12px;"></i> ${s.telefono}` : 'Sin teléfono';
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><strong style="color:var(--primary);">${s.nombre || ''}</strong><br><span style="font-size:12px;color:var(--text-muted);">${docText}</span></td>
+                            <td>${s.edad || 0} años</td>
+                            <td>${s.sede || ''} - ${s.grado || ''} ${s.grupo || ''}</td>
+                            <td style="font-size:13px;color:var(--text-muted);">${telText}</td>
+                            <td><span class="badge badge-blue">${s.condicion || ''}</span></td>
+                            <td class="text-center" style="white-space:nowrap;">
+                                <button onclick="editStudent('${s.id}')" class="btn btn-sm btn-outline" title="Editar"><i class="fas fa-edit"></i></button>
+                                <button onclick="deleteStudent('${s.id}')" class="btn btn-sm btn-outline" style="color:var(--danger);" title="Eliminar"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                if (filtered.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">No se encontraron estudiantes.</td></tr>';
+                }
+            }
+
+            // Print table
+            const printOpts = {};
+            document.querySelectorAll('.print-opt').forEach(cb => {
+                printOpts[cb.value] = cb.checked;
+            });
+
+            const printDate = document.getElementById('print-date');
+            if (printDate) printDate.textContent = 'Fecha de generación: ' + new Date().toLocaleDateString();
+
+            const headMap = {
+                documento: 'Documento', edad: 'Edad', padres: 'Padres',
+                telefono: 'Teléfono', sede: 'Sede / Grado / Grupo',
+                maestro: 'Maestro Titular', condicion: 'Condición',
+                ajustes: 'Ajustes Razonables', avances: 'Avances'
+            };
+
+            let headHTML = '<th>Nombre del Estudiante</th>';
+            Object.keys(headMap).forEach(k => {
+                if (printOpts[k]) headHTML += `<th>${headMap[k]}</th>`;
+            });
+
+            const pHead = document.getElementById('print-table-head');
+            if (pHead) pHead.innerHTML = headHTML;
+
+            let bodyHTML = '';
+            filtered.forEach(s => {
+                bodyHTML += '<tr><td><strong>' + (s.nombre || '') + '</strong></td>';
+                if (printOpts.documento) bodyHTML += `<td>${s.documento || ''}</td>`;
+                if (printOpts.edad) bodyHTML += `<td>${s.edad || 0}</td>`;
+                if (printOpts.padres) bodyHTML += `<td>M: ${s.madre || ''}<br>P: ${s.padre || ''}</td>`;
+                if (printOpts.telefono) bodyHTML += `<td>${s.telefono || ''}</td>`;
+                if (printOpts.sede) bodyHTML += `<td>${s.sede || ''}<br>${s.grado || ''} ${s.grupo || ''}</td>`;
+                if (printOpts.maestro) bodyHTML += `<td>${s.maestro || ''}</td>`;
+                if (printOpts.condicion) bodyHTML += `<td>${s.condicion || ''}</td>`;
+                if (printOpts.ajustes) bodyHTML += `<td>${s.ajustes || ''}</td>`;
+                if (printOpts.avances) bodyHTML += `<td>${s.avances || ''}</td>`;
+                bodyHTML += '</tr>';
+            });
+
+            const pBody = document.getElementById('print-table-body');
+            if (pBody) pBody.innerHTML = bodyHTML || '<tr><td colspan="10" style="text-align:center;">Sin registros</td></tr>';
+        }
+
+        // ===================== IMPORT / EXPORT =====================
+        async function exportToTextFile() {
+            try {
+                const data = await apiGet('/data/export');
+                if (data.students.length === 0) {
+                    alert('No hay estudiantes registrados para exportar.');
+                    return;
+                }
+                const dataStr = JSON.stringify(data.students, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.download = `piar_estudiantes_${new Date().toISOString().slice(0,10)}.txt`;
+                link.href = url;
+                link.click();
+                URL.revokeObjectURL(url);
+                document.getElementById('last-file-action').textContent = 'Exportado con éxito a las ' + new Date().toLocaleTimeString();
+            } catch (err) {
+                alert('Error al exportar: ' + err.message);
+            }
+        }
+
+        function importFromTextFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(evt) {
+                try {
+                    const importedData = JSON.parse(evt.target.result);
+                    if (!Array.isArray(importedData)) throw new Error('El formato no es válido (debe ser una lista).');
+                    if (importedData.length > 0 && !importedData[0].nombre) throw new Error('El archivo no contiene registros válidos.');
+
+                    const replace = confirm(
+                        `Se encontraron ${importedData.length} registros. ¿Deseas REEMPLAZAR la lista actual?\n\n` +
+                        'Aceptar (OK): Reemplazar todos los registros\nCancelar (Cancel): Combinar registros'
+                    );
+
+                    await apiPost('/data/import', { data: importedData, mode: replace ? 'replace' : 'merge' });
+                    await loadStudents();
+                    document.getElementById('last-file-action').textContent =
+                        'Importado "' + file.name + '" a las ' + new Date().toLocaleTimeString();
+                    alert('Registros importados correctamente.');
+                } catch (err) {
+                    alert('Error al importar: ' + err.message);
+                }
+                e.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        // ===================== PASSWORD RECOVERY =====================
+        function showRecoveryForm() {
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('forgot-link-container').style.display = 'none';
+            document.getElementById('login-error').style.display = 'none';
+            document.getElementById('recovery-form').classList.remove('hidden');
+            document.getElementById('recovery-step-1').classList.remove('hidden');
+            document.getElementById('recovery-step-2').classList.add('hidden');
+            document.getElementById('recovery-username').value = '';
+            document.getElementById('recovery-error').style.display = 'none';
+        }
+
+        function cancelRecovery() {
+            document.getElementById('recovery-form').classList.add('hidden');
+            document.getElementById('login-form').style.display = '';
+            document.getElementById('forgot-link-container').style.display = '';
+            document.getElementById('login-error').style.display = 'none';
+            document.getElementById('recovery-error').style.display = 'none';
+        }
+
+        async function handleRecoveryStep1() {
+            const username = document.getElementById('recovery-username').value.trim();
+            const errorEl = document.getElementById('recovery-error');
+            if (!username) {
+                errorEl.textContent = 'Ingresa tu nombre de usuario.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            try {
+                const data = await apiPost('/auth/recovery/verify', { username });
+                errorEl.style.display = 'none';
+                document.getElementById('recovery-step-1').classList.add('hidden');
+                document.getElementById('recovery-info').innerHTML =
+                    `<i class="fas fa-user-check" style="color:var(--success);"></i> Usuario verificado: <strong>${data.user.nombre_completo}</strong>`;
+                document.getElementById('recovery-step-2').classList.remove('hidden');
+                document.getElementById('recovery-new-password').value = '';
+                document.getElementById('recovery-confirm-password').value = '';
+                document.getElementById('recovery-step-2').dataset.username = username;
+            } catch (err) {
+                errorEl.textContent = err.message;
+                errorEl.style.display = 'block';
+            }
+        }
+
+        async function handleRecoveryStep2() {
+            const username = document.getElementById('recovery-step-2').dataset.username;
+            const newPass = document.getElementById('recovery-new-password').value;
+            const confirmPass = document.getElementById('recovery-confirm-password').value;
+            const errorEl = document.getElementById('recovery-error');
+
+            if (!newPass || !confirmPass) {
+                errorEl.textContent = 'Completa todos los campos.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (newPass !== confirmPass) {
+                errorEl.textContent = 'Las contraseñas no coinciden.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (newPass.length < 4) {
+                errorEl.textContent = 'La contraseña debe tener al menos 4 caracteres.';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            try {
+                await apiPost('/auth/recovery/reset', { username, newPassword: newPass });
+                errorEl.style.display = 'none';
+                alert('Contraseña actualizada correctamente. Ahora puedes iniciar sesión con tu nueva contraseña.');
+                cancelRecovery();
+            } catch (err) {
+                errorEl.textContent = err.message;
+                errorEl.style.display = 'block';
+            }
+        }
+
+        // ===================== CHANGE PASSWORD (MODAL) =====================
+        function showChangePasswordForUser(userId, username) {
+            document.getElementById('change-password-user-id').value = userId;
+            document.getElementById('change-password-info').textContent =
+                'Cambiando contraseña para: ' + username;
+            document.getElementById('change-password-current-wrapper').style.display = 'none';
+            document.getElementById('change-password-current').required = false;
+            document.getElementById('change-password-new').value = '';
+            document.getElementById('change-password-confirm').value = '';
+            document.getElementById('change-password-error').style.display = 'none';
+            document.getElementById('change-password-modal').classList.remove('hidden');
+        }
+
+        function showSelfChangePassword() {
+            if (!currentUser) return;
+            document.getElementById('change-password-user-id').value = currentUser.id;
+            document.getElementById('change-password-info').textContent =
+                'Cambiando tu contraseña. Ingresa tu contraseña actual y la nueva.';
+            document.getElementById('change-password-current-wrapper').style.display = '';
+            document.getElementById('change-password-current').required = true;
+            document.getElementById('change-password-current').value = '';
+            document.getElementById('change-password-new').value = '';
+            document.getElementById('change-password-confirm').value = '';
+            document.getElementById('change-password-error').style.display = 'none';
+            document.getElementById('change-password-modal').classList.remove('hidden');
+        }
+
+        function closeChangePasswordModal() {
+            document.getElementById('change-password-modal').classList.add('hidden');
+        }
+
+        async function handleChangePassword() {
+            const userId = document.getElementById('change-password-user-id').value;
+            const currentPass = document.getElementById('change-password-current').value;
+            const newPass = document.getElementById('change-password-new').value;
+            const confirmPass = document.getElementById('change-password-confirm').value;
+            const errorEl = document.getElementById('change-password-error');
+            const isSelf = currentUser && userId === currentUser.id;
+
+            if (!newPass || !confirmPass) {
+                errorEl.textContent = 'Completa todos los campos.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (newPass !== confirmPass) {
+                errorEl.textContent = 'Las contraseñas nuevas no coinciden.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (newPass.length < 4) {
+                errorEl.textContent = 'La contraseña debe tener al menos 4 caracteres.';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            try {
+                await apiPost('/auth/change-password', {
+                    userId,
+                    currentPassword: isSelf ? currentPass : undefined,
+                    newPassword: newPass
+                });
+
+                if (isSelf) {
+                    // Refresh token with new session
+                    const loginData = await apiPost('/auth/login', {
+                        username: currentUser.username,
+                        password: newPass
+                    });
+                    authToken = loginData.token;
+                    currentUser = loginData.user;
+                    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ token: authToken, user: currentUser }));
+                }
+
+                errorEl.style.display = 'none';
+                closeChangePasswordModal();
+                alert('Contraseña actualizada correctamente.');
+                loadUsers();
+            } catch (err) {
+                errorEl.textContent = err.message;
+                errorEl.style.display = 'block';
+            }
+        }
+
+        // ===================== INIT =====================
+        // ===================== INPUT RESTRICTIONS & VALIDATION =====================
+        function validateDateInput(input) {
+            let val = input.value;
+            if (!val) return;
+            let parts = val.split('-');
+            if (parts.length === 3) {
+                let year = parts[0];
+                if (year.length > 4) {
+                    year = year.slice(0, 4);
+                    input.value = year + '-' + parts[1] + '-' + parts[2];
+                }
+                const yearNum = parseInt(year, 10);
+                if (yearNum < 1900 || yearNum > new Date().getFullYear()) {
+                    input.classList.add('error');
+                } else {
+                    input.classList.remove('error');
+                }
+            }
+        }
+
+        function setupInputRestrictions() {
+            // Set max date on fecha_nac
+            const fechaNac = document.getElementById('fecha_nac');
+            if (fechaNac) {
+                const today = new Date();
+                const maxDate = today.getFullYear() + '-' +
+                    String(today.getMonth() + 1).padStart(2, '0') + '-' +
+                    String(today.getDate()).padStart(2, '0');
+                fechaNac.setAttribute('max', maxDate);
+            }
+
+            // Solo letras (incluyendo acentos) y espacios
+            const onlyLetters = (e) => {
+                const val = e.target.value;
+                e.target.value = val.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, '');
+            };
+
+            // Solo letras, números y guión bajo (para usernames)
+            const onlyUsername = (e) => {
+                const val = e.target.value;
+                e.target.value = val.replace(/[^a-zA-Z0-9_]/g, '');
+            };
+
+            // Solo números, +, -, paréntesis y espacios (para teléfono)
+            const onlyPhone = (e) => {
+                const val = e.target.value;
+                e.target.value = val.replace(/[^0-9+\-() ]/g, '');
+            };
+
+            // Solo alfanumérico y guiones (para documento)
+            const onlyDoc = (e) => {
+                const val = e.target.value;
+                e.target.value = val.replace(/[^a-zA-Z0-9-]/g, '');
+            };
+
+            // Asignar restricciones
+            document.querySelectorAll('#nombre, #madre, #padre, #maestro, #new-nombre').forEach(el => {
+                if (el) el.addEventListener('input', onlyLetters);
+            });
+            document.querySelectorAll('#login-username, #recovery-username, #new-username').forEach(el => {
+                if (el) el.addEventListener('input', onlyUsername);
+            });
+            const phoneEl = document.getElementById('telefono');
+            if (phoneEl) phoneEl.addEventListener('input', onlyPhone);
+            const docEl = document.getElementById('documento');
+            if (docEl) docEl.addEventListener('input', onlyDoc);
+
+            // Quitar clase error al escribir (real-time feedback)
+            document.querySelectorAll('.form-grid input, .form-grid select, .form-grid textarea').forEach(el => {
+                el.addEventListener('input', function() {
+                    this.classList.remove('error');
+                });
+                el.addEventListener('change', function() {
+                    this.classList.remove('error');
+                });
+            });
+        }
+
+        async function init() {
+            try {
+                setupInputRestrictions();
+                document.getElementById('loading-overlay').classList.add('hidden');
+                if (!await checkSession()) {
+                    document.getElementById('login-screen').classList.remove('hidden');
+                }
+            } catch (err) {
+                document.getElementById('loading-overlay').innerHTML = `
+                    <i class="fas fa-exclamation-triangle" style="font-size:48px;color:var(--accent);margin-bottom:16px;"></i>
+                    <p style="font-size:16px;font-weight:600;">Error al inicializar</p>
+                    <p style="font-size:14px;opacity:0.8;margin-top:8px;">${err.message}</p>
+                    <button onclick="location.reload()" style="margin-top:20px;padding:10px 24px;background:var(--accent);color:var(--primary-dark);border:none;border-radius:8px;font-weight:600;cursor:pointer;">
+                        <i class="fas fa-redo"></i> Reintentar
+                    </button>
+                `;
+            }
+        }
+
+        // Event listeners for print options
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.print-opt').forEach(cb => cb.addEventListener('change', renderTable));
+        });
+
+        init();
+    </script>
+</body>
+</html>
